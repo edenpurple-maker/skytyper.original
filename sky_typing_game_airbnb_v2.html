@@ -1,0 +1,209 @@
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  #game-wrap { width: 100%; height: 580px; position: relative; overflow: hidden; image-rendering: pixelated; }
+  .pixel-sky { position: absolute; inset: 0; background: linear-gradient(180deg,#8a6080 0%,#c47a7a 22%,#d9907a 42%,#e8a882 58%,#f0c090 74%,#f5d4a0 88%,#fce8c0 100%); }
+  canvas#cloud-canvas { position: absolute; inset: 0; pointer-events: none; }
+  #moon { position: absolute; top: 80px; left: 52%; font-size: 22px; color: #fff8e8; opacity: 0.92; font-family: serif; pointer-events: none; transform: rotate(-20deg); }
+  #ground { position: absolute; bottom: 0; left: 0; right: 0; height: 6px; background: repeating-linear-gradient(90deg,#5a3a28 0 8px,#3a2010 8px 16px); }
+  #ground-strip { position: absolute; bottom: 6px; left: 0; right: 0; height: 3px; background: repeating-linear-gradient(90deg,#6a4a30 0 8px,#4a2a18 8px 16px); }
+  .falling-word { position: absolute; font-size: 18px; font-weight: 400; color: #3a1820; background: rgba(255,235,220,0.90); border: 2px solid #d07060; border-radius: 0; padding: 3px 8px; letter-spacing: 1px; text-transform: lowercase; image-rendering: pixelated; box-shadow: 2px 2px 0 #b05040; font-family: 'Courier New', monospace; }
+  .falling-word.bold-word { font-weight: 700; color: #7a1050; border-color: #d05090; background: rgba(255,220,235,0.92); box-shadow: 2px 2px 0 #a03070; text-transform: uppercase; }
+  .falling-word.super-word { font-weight: 700; color: #7a1010; border-color: #d03030; background: rgba(255,215,215,0.92); box-shadow: 2px 2px 0 #a01818; font-size: 19px; letter-spacing: 2px; }
+  .falling-word.typed { color: #1a5a30; border-color: #44bb66; background: rgba(210,255,220,0.92); box-shadow: 2px 2px 0 #33994d; }
+  #hud { position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; gap: 16px; padding: 8px 14px; background: rgba(80,30,30,0.45); border-bottom: 2px solid #d07860; font-size: 13px; color: #fce8c0; font-family: 'Courier New', monospace; }
+  #hud span { font-weight: 700; color: #f5c060; }
+  .hud-lives { color: #e06060; font-size: 15px; }
+  #input-area { position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); }
+  #word-input { font-family: 'Courier New', monospace; font-size: 16px; font-weight: 700; padding: 6px 14px; border: 2px solid #c07060; border-radius: 0; background: #ffffff; color: #3a1820; width: 240px; outline: none; box-shadow: 3px 3px 0 #a05040; }
+  #word-input:focus { border-color: #d08040; box-shadow: 3px 3px 0 #c07030; }
+  #word-input.correct { border-color: #44bb66; background: #edfff2; }
+  #word-input.wrong { border-color: #cc3333; background: #fff0f0; }
+  #overlay { position: absolute; inset: 0; background: rgba(100,50,40,0.82); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; font-family: 'Courier New', monospace; z-index: 10; }
+  #overlay h2 { font-size: 28px; color: #fce8a0; letter-spacing: 2px; font-weight: 700; text-shadow: 1px 1px 0 #8a3a20; }
+  #overlay p { font-size: 14px; color: #fce0c0; letter-spacing: 1px; }
+  #overlay .legend { font-size: 12px; color: #f0c890; margin-top: 4px; line-height: 2.1; text-align: center; }
+  #start-btn { margin-top: 8px; padding: 10px 32px; font-family: 'Courier New', monospace; font-size: 15px; font-weight: 700; letter-spacing: 2px; background: #d4a020; color: #3a1800; border: none; border-radius: 0; cursor: pointer; box-shadow: 4px 4px 0 #8a6000; }
+  #start-btn:hover { background: #e8b830; }
+  .pop-label { position: absolute; font-family: 'Courier New', monospace; font-size: 18px; font-weight: 700; pointer-events: none; z-index: 5; text-shadow: 1px 1px 0 #fff; transition: opacity 0.4s; }
+  #wpm-bar { position: absolute; bottom: 60px; right: 14px; font-family: 'Courier New', monospace; font-size: 11px; color: #c07850; text-align: right; line-height: 1.6; }
+</style>
+
+<div id="game-wrap" aria-label="Sky typing game">
+  <h2 class="sr-only">Sky typing game — type falling Airbnb words before they hit the ground</h2>
+  <div class="pixel-sky"></div>
+  <canvas id="cloud-canvas"></canvas>
+  <div id="moon">☽</div>
+  <div id="ground-strip"></div>
+  <div id="ground"></div>
+  <div id="hud">
+    <div>SCORE <span id="score-val">0</span></div>
+    <div>LIVES <span class="hud-lives" id="lives-val">♥♥♥</span></div>
+    <div>LEVEL <span id="level-val">1</span></div>
+    <div>ERR <span id="err-val" style="color:#e06060">0</span></div>
+    <div style="margin-left:auto">WPM <span id="wpm-val">0</span></div>
+    <div>ACC <span id="acc-val">100%</span></div>
+  </div>
+  <div id="wpm-bar"><div>chars/min: <b id="cpm-val">0</b></div></div>
+  <div id="input-area">
+    <input id="word-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="type here..." />
+  </div>
+  <div id="overlay">
+    <h2 id="overlay-title">SKY TYPER</h2>
+    <p id="overlay-msg">Type falling Airbnb words before they land!</p>
+    <div class="legend">
+      <span style="color:#fde9a0">normal word</span> → 10 pts each letter<br>
+      <span style="color:#e060a0"><b>PINK BOLD</b></span> → 20 pts each letter (bonus!)<br>
+      <span style="color:#e03030"><b>$R3D!</b></span> → 40 pts each char (super bonus!)
+    </div>
+    <button id="start-btn">▶ START</button>
+  </div>
+</div>
+
+<script>
+const NORMAL_WORDS = [
+  "host","guest","belo","stay","trip","book","home","rate","list","vett",
+  "rausch","cereal","nova","glean","hare","trust","magic","local","place","share",
+  "payout","review","supply","launch","travel","access","onboard","quality","revenue","rollout",
+  "listing","hosting","pricing","rebooking","amenity","checkout","checkin","aircover","wishlist","category",
+  "stepfree","adapted","airfam","casper","luxe","search","funnel","pilot","sprints","wayfinding",
+  "belonging","community","inclusion","discovery","authentic","curiosity","hospitality","connection","wanderlust","compliance",
+  "standards","operations","enforcement","merchandising","photography","regulatory","partnership","accessibility","experiences","adventures"
+];
+
+const BOLD_WORDS = [
+  "SCALEDOPS","REVOPS","ENTOPS","AIRCOVER","SUPERHOST","GUESTFAVE","OMGHERE","ADAPTED","CATEGORY","HOSTTOOLS",
+  "OPSTREAM","VETTING","LICENSING","FIELDOPS","SUPPLIERMGMT","WORKFLOWS","RELISTING","ANNOTATION","SALESFORCE","HIGHSPOT",
+  "PROHOSTING","MAGENTA","Paralympics","GEMBA","OKRS","GBVUPLIFT","NEWBIES","HOSTQUALITY","STEPFREE","SUPPLYOPS"
+];
+
+const SUPER = [
+  "SC@L3D!","R3V0PS!","3NT0P$!","A!RC0VR","B3L0NG!","H0$T!NG","0KR$FY!","L@UNCH!","@CC3SS!","V3TT1NG"
+];
+
+let score=0,lives=3,level=1,gameActive=false;
+let words=[],spawnTimer=0,spawnInterval=240,frameId;
+let charsTyped=0,charsCorrect=0,startTime=null,totalCorrectChars=0,levelTimer=0,wordErrors=0;
+let suppressInput=false;
+
+const $=id=>document.getElementById(id);
+const scoreEl=$('score-val'),livesEl=$('lives-val'),levelEl=$('level-val'),wpmEl=$('wpm-val'),accEl=$('acc-val'),cpmEl=$('cpm-val'),errEl=$('err-val');
+const inp=$('word-input'),overlay=$('overlay'),overlayTitle=$('overlay-title'),overlayMsg=$('overlay-msg'),startBtn=$('start-btn'),wrap=$('game-wrap');
+const canvas=$('cloud-canvas'),ctx=canvas.getContext('2d');
+canvas.width=680; canvas.height=580;
+
+const clouds=[];
+for(let i=0;i<9;i++) clouds.push({x:Math.random()*800,y:20+Math.random()*320,w:60+Math.random()*120,h:24+Math.random()*40,speed:0.12+Math.random()*0.20,blocks:[],tone:Math.random()});
+clouds.forEach(c=>{const cols=Math.ceil(c.w/8),rows=Math.ceil(c.h/8);for(let r=0;r<rows;r++)for(let cc=0;cc<cols;cc++)if(Math.random()<0.68)c.blocks.push({x:cc*8,y:r*8});});
+
+function cloudColor(y,tone){const t=y/580;if(t<0.15)return tone>0.5?'rgba(180,130,150,0.62)':'rgba(160,110,130,0.55)';if(t<0.35)return tone>0.5?'rgba(210,130,120,0.60)':'rgba(195,110,105,0.55)';if(t<0.55)return tone>0.5?'rgba(225,155,120,0.58)':'rgba(210,140,110,0.52)';return tone>0.5?'rgba(235,185,140,0.55)':'rgba(220,170,130,0.50)';}
+function drawClouds(){ctx.clearRect(0,0,680,580);clouds.forEach(c=>{c.x-=c.speed;if(c.x<-c.w-20)c.x=700+Math.random()*100;ctx.fillStyle=cloudColor(c.y,c.tone);c.blocks.forEach(b=>ctx.fillRect(Math.floor(c.x+b.x),Math.floor(c.y+b.y),8,8));});}
+function getWordType(){const r=Math.random();if(r<1/40)return'super';if(r<1/10)return'bold';return'normal';}
+function pickWord(t){if(t==='super')return SUPER[Math.floor(Math.random()*SUPER.length)];if(t==='bold')return BOLD_WORDS[Math.floor(Math.random()*BOLD_WORDS.length)];return NORMAL_WORDS[Math.floor(Math.random()*NORMAL_WORDS.length)];}
+
+function spawnWord(){
+  const type=getWordType(),text=pickWord(type);
+  const el=document.createElement('div');
+  el.className='falling-word'+(type==='bold'?' bold-word':type==='super'?' super-word':'');
+  el.textContent=text; el.dataset.type=type;
+  el.style.left=Math.min(20+Math.random()*520,580)+'px'; el.style.top='38px';
+  wrap.appendChild(el);
+  words.push({el,text,y:38,speed:(0.28+level*0.09)*(0.85+Math.random()*0.3),type});
+}
+
+function showPop(text,x,y,color){const p=document.createElement('div');p.className='pop-label';p.textContent=text;p.style.left=x+'px';p.style.top=y+'px';p.style.color=color;wrap.appendChild(p);setTimeout(()=>{p.style.opacity='0';setTimeout(()=>p.remove(),400);},600);}
+function updateLives(){livesEl.textContent='♥'.repeat(Math.max(0,lives))+'♡'.repeat(Math.max(0,3-lives));}
+function calcWPM(){if(!startTime||!totalCorrectChars)return 0;return Math.round((totalCorrectChars/5)/((Date.now()-startTime)/60000));}
+function calcCPM(){if(!startTime||!totalCorrectChars)return 0;return Math.round(totalCorrectChars/((Date.now()-startTime)/60000));}
+
+function hardClear(){
+  suppressInput=true;
+  inp.value='';
+  inp.classList.remove('correct','wrong');
+  words.forEach(w=>w.el.classList.remove('typed'));
+  setTimeout(()=>{ inp.value=''; suppressInput=false; },50);
+}
+
+function explodeWord(w){
+  wordErrors++; errEl.textContent=wordErrors;
+  showPop('✗',parseFloat(w.el.style.left)+20,w.y-10,'#cc2222');
+  w.el.style.transition='transform 0.18s, opacity 0.18s';
+  w.el.style.transform='scale(1.4)'; w.el.style.opacity='0';
+  setTimeout(()=>w.el.remove(),200);
+  words.splice(words.indexOf(w),1);
+  hardClear();
+}
+
+function gameLoop(){
+  if(!gameActive)return;
+  drawClouds(); spawnTimer++; levelTimer++;
+  if(levelTimer>600){level=Math.min(level+1,10);levelTimer=0;levelEl.textContent=level;spawnInterval=Math.max(90,240-level*16);}
+  if(spawnTimer>=spawnInterval){spawnTimer=0;spawnWord();}
+  for(let i=words.length-1;i>=0;i--){
+    const w=words[i]; w.y+=w.speed; w.el.style.top=Math.floor(w.y)+'px';
+    if(w.y>530){w.el.remove();words.splice(i,1);lives--;updateLives();if(lives<=0){endGame();return;}}
+  }
+  wpmEl.textContent=calcWPM(); cpmEl.textContent=calcCPM();
+  accEl.textContent=(charsTyped===0?100:Math.round((charsCorrect/charsTyped)*100))+'%';
+  frameId=requestAnimationFrame(gameLoop);
+}
+
+inp.addEventListener('keydown',e=>{
+  if(e.key==='Enter'){e.preventDefault();hardClear();}
+});
+
+inp.addEventListener('input',()=>{
+  if(!gameActive||suppressInput)return;
+  const val=inp.value.toLowerCase().replace(/\s/g,'');
+  if(inp.value!==val)inp.value=val;
+  if(!val){hardClear();return;}
+  if(!startTime)startTime=Date.now();
+  charsTyped++;
+
+  let matched=null;
+  for(const w of words){if(w.text.toLowerCase().startsWith(val)){matched=w;break;}}
+
+  if(matched){
+    charsCorrect++;
+    words.forEach(w=>w.el.classList.remove('typed'));
+    matched.el.classList.add('typed');
+    inp.classList.remove('wrong'); inp.classList.add('correct');
+    if(val===matched.text.toLowerCase()){
+      const pts=matched.type==='super'?matched.text.length*40:matched.type==='bold'?matched.text.length*20:matched.text.length*10;
+      totalCorrectChars+=matched.text.length; score+=pts; scoreEl.textContent=score;
+      const col=matched.type==='super'?'#cc2222':matched.type==='bold'?'#cc3388':'#228844';
+      showPop('+'+pts,parseFloat(matched.el.style.left),matched.y-20,col);
+      matched.el.remove(); words.splice(words.indexOf(matched),1);
+      hardClear();
+    }
+  } else {
+    inp.classList.remove('correct'); inp.classList.add('wrong');
+    const active=words.find(w=>w.el.classList.contains('typed'));
+    if(active)explodeWord(active); else hardClear();
+  }
+});
+
+function startGame(){
+  score=0;lives=3;level=1;words=[];spawnTimer=0;levelTimer=0;
+  spawnInterval=240;charsTyped=0;charsCorrect=0;startTime=null;totalCorrectChars=0;wordErrors=0;
+  scoreEl.textContent=0;levelEl.textContent=1;updateLives();errEl.textContent=0;
+  wpmEl.textContent=0;accEl.textContent='100%';cpmEl.textContent=0;
+  document.querySelectorAll('.falling-word').forEach(el=>el.remove());
+  overlay.style.display='none';
+  hardClear(); setTimeout(()=>inp.focus(),60);
+  gameActive=true;
+  frameId=requestAnimationFrame(gameLoop);
+}
+
+function endGame(){
+  gameActive=false; cancelAnimationFrame(frameId);
+  overlayTitle.textContent='GAME OVER';
+  const wpm=calcWPM(),acc=charsTyped===0?100:Math.round((charsCorrect/charsTyped)*100);
+  overlayMsg.innerHTML=`score: <b>${score}</b> &nbsp;|&nbsp; wpm: <b>${wpm}</b> &nbsp;|&nbsp; accuracy: <b>${acc}%</b> &nbsp;|&nbsp; errors: <b>${wordErrors}</b>`;
+  startBtn.textContent='▶ PLAY AGAIN'; overlay.style.display='flex'; inp.blur();
+}
+
+startBtn.addEventListener('click',startGame);
+drawClouds();
+requestAnimationFrame(function cloudIdle(){if(!gameActive){drawClouds();requestAnimationFrame(cloudIdle);}});
+</script>
